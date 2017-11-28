@@ -17,7 +17,7 @@ class Farkle:
     def __init__(self, verbosity=0):
         self.current_score = 0
         # self.theta = [20.0, -1, -.05, .05, 20]
-        self.theta = np.random.rand(3)
+        self.theta = np.random.rand(4)
         self.score_history = []
         self.v = verbosity
 
@@ -89,7 +89,8 @@ class Farkle:
                 used = 3
 
                 # score remainder
-                if greedy or list(c.keys()) in ([1, 5], [5, 1]):   # use all if possible or if greedy
+                if greedy or list(c.keys()) in ([1, 5], [5, 1]):
+                    # use all if possible or if greedy
                     temp_score += c[1] * 100
                     used += c[1]
                     temp_score += c[5] * 50
@@ -140,7 +141,7 @@ class Farkle:
                 self._play(remaining_dice)
             else:
                 if self.v:
-                    print('quit while ahead with {}'.format(self.current_score))
+                    print('quit while ahead w/ {}'.format(self.current_score))
                 self.score_history.append(self.current_score)
                 return self.current_score
 
@@ -148,7 +149,8 @@ class Farkle:
         else:
             if self.v:
                 if self.current_score:
-                    print('you lost your {} points by being greedy'.format(self.current_score))
+                    print('you lost {} points by being greedy'
+                          .format(self.current_score))
                 else:
                     print('unlucky, score = 0')
             self.score_history.append(0)
@@ -159,7 +161,8 @@ class Farkle:
         score = self.current_score
         t = self.theta
         activation = sum([num_dice/6 * t[0],
-                          score/1000 * t[1]])
+                          score/3000 * t[1],
+                          score/num_dice/500 * t[2]])
         # np.log10(score + .000001) * t[1],
         # num_dice / (score + 1) * self.theta[3]])
         return activation > t[-1]
@@ -185,7 +188,7 @@ if __name__ == '__main__':
     best_score = 0
     best_theta = f.theta.copy()
 
-    games = 60000
+    games = 10000
     f.score_history = []
 
     # baseline
@@ -195,20 +198,20 @@ if __name__ == '__main__':
 
     last = np.mean(f.score_history)
     best_time = 0
-    delta = 1
+    delta = 50
 
     print('initial score = {}, theta={}'.format(last, f.theta))
 
     # change parameters, if it works keep it
-    for step in range(1000):
+    for step in range(100):
         if last == 0:
             last = 1
 
         # gradient - score(theta + delta) - score(theta)
         gradient = np.zeros(len(f.theta))
 
-        if step - best_time > 15:
-            delta /= 3
+        if step - best_time > 3:
+            delta /= 5
             best_time = step
             print('delta =', delta)
             if delta < .01:
@@ -235,12 +238,12 @@ if __name__ == '__main__':
                 f.play()
             minus = np.mean(f.score_history) / last
 
-            gradient[w] = (plus - minus)
+            gradient[w] = plus - minus
 
             # reset theta
             f.theta[w] = temp
 
-        f.theta += gradient * delta
+        f.theta += np.clip(gradient * delta, -delta/10, delta/10)
         print('for step=', step)
         print('gradient  =', gradient)
         print('theta set =', f.theta)
